@@ -119,9 +119,9 @@
       });
 
       if (updateRes.ok) {
-        estado.textContent = "✅ Cambios guardados correctamente.";
+        estado.textContent = "Cambios guardados correctamente.";
       } else {
-        estado.textContent = "❌ Error al guardar cambios.";
+        estado.textContent = "Error al guardar cambios.";
         console.error(await updateRes.json());
       }
     }
