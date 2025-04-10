@@ -1,96 +1,59 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Gestión de Clientes - Cheque</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 2rem; background: #f5f5f5; }
-    label, select, button { display: block; margin: 1rem 0; }
-    .status { font-weight: bold; margin: 1rem 0; }
-    .json-output { background: #fff; padding: 1rem; border: 1px solid #ccc; white-space: pre-wrap; }
-  </style>
-</head>
-<body>
+<script>
+const GITHUB_TOKEN = "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";
+const OWNER = "nahuesoares";
+const REPO = "BeclotAllowedCustomers";
+const FILE_PATH = "allowed_customers.json";
+const BRANCH = "main";
 
-  <h2>Gestión de clientes habilitados para pagar con cheque</h2>
+// Cargar JSON actual
+async function fetchAllowedCustomers() {
+  const res = await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${FILE_PATH}`);
+  const json = await res.json();
+  return json.allowedCustomerIDs;
+}
 
-  <label for="customer-select">Seleccionar cliente:</label>
-  <select id="customer-select">
-    <option value="">-- Selecciona un cliente --</option>
-    <option value="3">Cliente 3</option>
-    <option value="202">Cliente 202</option>
-    <option value="303">Cliente 303</option>
-    <option value="404">Cliente 404</option>
-  </select>
+// Guardar cambios
+async function updateAllowedCustomers(updatedList) {
+  const getUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}`;
 
-  <div class="status" id="status"></div>
-
-  <label for="toggle-select">¿Habilitado para pagar con cheque?</label>
-  <select id="toggle-select">
-    <option value="true">Sí</option>
-    <option value="false">No</option>
-  </select>
-
-  <button onclick="actualizarLista()">Actualizar</button>
-
-  <h3>Nuevo JSON para reemplazar:</h3>
-  <div class="json-output" id="json-output">{}</div>
-
-  <script>
-    const GITHUB_JSON_URL = "https://nahuesoares.github.io/BeclotAllowedCustomers/allowed_customers.json";
-
-    let allowedCustomerIDs = [];
-
-    // Cargar lista desde GitHub
-    fetch(GITHUB_JSON_URL, { cache: "no-store" })
-      .then(res => res.json())
-      .then(data => {
-        allowedCustomerIDs = data.allowedCustomerIDs || [];
-        document.getElementById("json-output").textContent = JSON.stringify({ allowedCustomerIDs }, null, 2);
-      });
-
-    // Mostrar estado actual al seleccionar cliente
-    document.getElementById("customer-select").addEventListener("change", () => {
-      const id = parseInt(document.getElementById("customer-select").value, 10);
-      const statusEl = document.getElementById("status");
-      if (!id) {
-        statusEl.textContent = "";
-        return;
-      }
-
-      if (allowedCustomerIDs.includes(id)) {
-        statusEl.textContent = "Cliente actualmente habilitado para pagar con cheque.";
-        document.getElementById("toggle-select").value = "true";
-      } else {
-        statusEl.textContent = "Cliente actualmente NO habilitado para pagar con cheque.";
-        document.getElementById("toggle-select").value = "false";
-      }
-    });
-
-    // Actualizar la lista local
-    function actualizarLista() {
-      const id = parseInt(document.getElementById("customer-select").value, 10);
-      const habilitado = document.getElementById("toggle-select").value === "true";
-
-      if (!id) {
-        alert("Selecciona un cliente.");
-        return;
-      }
-
-      const index = allowedCustomerIDs.indexOf(id);
-      if (habilitado && index === -1) {
-        allowedCustomerIDs.push(id);
-      } else if (!habilitado && index !== -1) {
-        allowedCustomerIDs.splice(index, 1);
-      }
-
-      allowedCustomerIDs.sort((a, b) => a - b); // Ordenar por estética
-      document.getElementById("json-output").textContent = JSON.stringify({ allowedCustomerIDs }, null, 2);
-      document.getElementById("status").textContent = habilitado
-        ? "Cliente habilitado para pagar con cheque."
-        : "Cliente eliminado de la lista de cheque.";
+  // Obtener SHA actual del archivo
+  const getRes = await fetch(getUrl, {
+    headers: {
+      Authorization: `token ${GITHUB_TOKEN}`,
+      Accept: "application/vnd.github.v3+json"
     }
-  </script>
+  });
 
-</body>
-</html>
+  const fileData = await getRes.json();
+  const sha = fileData.sha;
+
+  // Armar nuevo contenido
+  const updatedContent = {
+    allowedCustomerIDs: updatedList
+  };
+
+  const payload = {
+    message: "Actualizar lista de clientes habilitados",
+    content: btoa(JSON.stringify(updatedContent, null, 2)), // codificar en base64
+    sha: sha,
+    branch: BRANCH
+  };
+
+  // Enviar actualización
+  const updateRes = await fetch(getUrl, {
+    method: "PUT",
+    headers: {
+      Authorization: `token ${GITHUB_TOKEN}`,
+      Accept: "application/vnd.github.v3+json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (updateRes.ok) {
+    alert("¡Actualizado correctamente!");
+  } else {
+    alert("Error al actualizar");
+    console.error(await updateRes.json());
+  }
+}
+</script>
