@@ -36,12 +36,12 @@
 
     let allowedIDs = [];
 
-    async function fetchAllowedCustomers() {
+    /*async function fetchAllowedCustomers() {
       const res = await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${FILE_PATH}`);
       const json = await res.json();
       allowedIDs = json.allowedCustomerIDs;
       return allowedIDs;
-    }
+    }*/
 
     async function fetchAllCustomers() {
       const res = await fetch("/api/storefront/customers", {
@@ -54,7 +54,11 @@
       const select = document.getElementById("customer-select");
       const status = document.getElementById("cheque-enabled");
 
-      const customers = await fetchAllCustomers();
+      //const customers = await fetchAllCustomers();
+      const customers = [
+                          { id: 101, email: "cliente1@ejemplo.com" },
+                          { id: 102, email: "cliente2@ejemplo.com" }
+                        ];
       const allowed = await fetchAllowedCustomers();
 
       select.innerHTML = customers.map(c => `
