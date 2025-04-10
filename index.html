@@ -36,19 +36,19 @@
 
     let allowedIDs = [];
 
-    /*async function fetchAllowedCustomers() {
+    async function fetchAllowedCustomers() {
       const res = await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${FILE_PATH}`);
       const json = await res.json();
       allowedIDs = json.allowedCustomerIDs;
       return allowedIDs;
-    }*/
+    }
 
-    async function fetchAllCustomers() {
+    /*async function fetchAllCustomers() {
       const res = await fetch("/api/storefront/customers", {
         credentials: "include"
       });
       return await res.json();
-    }
+    }*/
 
     async function renderForm() {
       const select = document.getElementById("customer-select");
