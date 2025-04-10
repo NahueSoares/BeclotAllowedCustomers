@@ -1,59 +1,132 @@
-<script>
-const GITHUB_TOKEN = "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";
-const OWNER = "nahuesoares";
-const REPO = "BeclotAllowedCustomers";
-const FILE_PATH = "allowed_customers.json";
-const BRANCH = "main";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestión de clientes habilitados para cheque</title>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 500px; margin: auto; }
+    label, select, button { display: block; margin-top: 15px; width: 100%; }
+    select, button { padding: 8px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h2>Gestión de clientes habilitados</h2>
 
-// Cargar JSON actual
-async function fetchAllowedCustomers() {
-  const res = await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${FILE_PATH}`);
-  const json = await res.json();
-  return json.allowedCustomerIDs;
-}
+  <label for="customer-select">Seleccionar cliente:</label>
+  <select id="customer-select">
+    <option value="">Cargando clientes...</option>
+  </select>
 
-// Guardar cambios
-async function updateAllowedCustomers(updatedList) {
-  const getUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}`;
+  <label for="cheque-enabled">¿Habilitado para pagar con cheque?</label>
+  <select id="cheque-enabled">
+    <option value="yes">Sí</option>
+    <option value="no">No</option>
+  </select>
 
-  // Obtener SHA actual del archivo
-  const getRes = await fetch(getUrl, {
-    headers: {
-      Authorization: `token ${GITHUB_TOKEN}`,
-      Accept: "application/vnd.github.v3+json"
+  <button onclick="guardarCambios()">Actualizar cliente</button>
+
+  <p id="estado" style="margin-top:20px;"></p>
+
+  <script>
+    const GITHUB_TOKEN = "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";
+    const OWNER = "nahuesoares";
+    const REPO = "BeclotAllowedCustomers";
+    const FILE_PATH = "allowed_customers.json";
+    const BRANCH = "main";
+
+    let allowedIDs = [];
+
+    async function fetchAllowedCustomers() {
+      const res = await fetch(`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${FILE_PATH}`);
+      const json = await res.json();
+      allowedIDs = json.allowedCustomerIDs;
+      return allowedIDs;
     }
-  });
 
-  const fileData = await getRes.json();
-  const sha = fileData.sha;
+    async function fetchAllCustomers() {
+      const res = await fetch("/api/storefront/customers", {
+        credentials: "include"
+      });
+      return await res.json();
+    }
 
-  // Armar nuevo contenido
-  const updatedContent = {
-    allowedCustomerIDs: updatedList
-  };
+    async function renderForm() {
+      const select = document.getElementById("customer-select");
+      const status = document.getElementById("cheque-enabled");
 
-  const payload = {
-    message: "Actualizar lista de clientes habilitados",
-    content: btoa(JSON.stringify(updatedContent, null, 2)), // codificar en base64
-    sha: sha,
-    branch: BRANCH
-  };
+      const customers = await fetchAllCustomers();
+      const allowed = await fetchAllowedCustomers();
 
-  // Enviar actualización
-  const updateRes = await fetch(getUrl, {
-    method: "PUT",
-    headers: {
-      Authorization: `token ${GITHUB_TOKEN}`,
-      Accept: "application/vnd.github.v3+json"
-    },
-    body: JSON.stringify(payload)
-  });
+      select.innerHTML = customers.map(c => `
+        <option value="${c.id}">${c.id} - ${c.email}</option>
+      `).join("");
 
-  if (updateRes.ok) {
-    alert("¡Actualizado correctamente!");
-  } else {
-    alert("Error al actualizar");
-    console.error(await updateRes.json());
-  }
-}
-</script>
+      select.addEventListener("change", () => {
+        const selectedId = parseInt(select.value, 10);
+        status.value = allowed.includes(selectedId) ? "yes" : "no";
+      });
+
+      // Disparar una vez por defecto
+      select.dispatchEvent(new Event("change"));
+    }
+
+    async function guardarCambios() {
+      const estado = document.getElementById("estado");
+      const select = document.getElementById("customer-select");
+      const status = document.getElementById("cheque-enabled");
+
+      const id = parseInt(select.value, 10);
+      const habilitar = status.value === "yes";
+
+      if (habilitar && !allowedIDs.includes(id)) {
+        allowedIDs.push(id);
+      } else if (!habilitar && allowedIDs.includes(id)) {
+        allowedIDs = allowedIDs.filter(i => i !== id);
+      }
+
+      estado.textContent = "Guardando cambios...";
+
+      const getUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}`;
+
+      const getRes = await fetch(getUrl, {
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: "application/vnd.github.v3+json"
+        }
+      });
+
+      const fileData = await getRes.json();
+      const sha = fileData.sha;
+
+      const newContent = {
+        allowedCustomerIDs: allowedIDs.sort((a, b) => a - b)
+      };
+
+      const payload = {
+        message: `Actualizar cliente ${id} (${habilitar ? "Habilitado" : "Deshabilitado"})`,
+        content: btoa(JSON.stringify(newContent, null, 2)),
+        sha: sha,
+        branch: BRANCH
+      };
+
+      const updateRes = await fetch(getUrl, {
+        method: "PUT",
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: "application/vnd.github.v3+json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (updateRes.ok) {
+        estado.textContent = "✅ Cambios guardados correctamente.";
+      } else {
+        estado.textContent = "❌ Error al guardar cambios.";
+        console.error(await updateRes.json());
+      }
+    }
+
+    renderForm();
+  </script>
+</body>
+</html>
